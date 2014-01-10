@@ -112,6 +112,94 @@ toggle_script_assert_check()
     ui_print("Script assert Check: %s\n", script_assert_enabled ? "Enabled" : "Disabled");
 }
 
+void toggle_touch_control_menu()
+{
+    if (ensure_path_mounted("/sdcard/") != 0) {
+        LOGE ("Can't mount sdcard\n");
+        return;
+    }
+
+    static const char* headers[] = {  "Toggle touch control type",
+                                "",
+                                "Selecting either full touch",
+                                "or touch Menu keys on bottom.",
+                                "",
+                                NULL
+    };
+
+    static char* list[] = { "",			//Toggle full touch 
+                            "",			//Toggle menu navigation
+                            "Disable all touch",
+                            NULL
+    };
+    
+    struct stat info;
+    if (0 != stat("/sdcard/clockworkmod/.full_nav", &info))
+    {
+    	list[0] = "Touch control - ON";
+    }
+    else if (0 == stat("/sdcard/clockworkmod/.full_nav", &info))
+    {
+    	list[0] = "Touch control - OFF";
+    }
+    if (0 == stat("/sdcard/clockworkmod/.menu_nav", &info))
+    	list[2] = "Menu control - OFF";
+    else if (0 != stat("/sdcard/clockworkmod/.menu_nav", &info))
+    	list[2] = "Menu control - ON";
+
+
+    int chosen_item = get_menu_selection(headers, list, 0, 0);
+    switch (chosen_item)
+    {
+        case 0:
+            {
+            	if (0 != stat("/sdcard/clockworkmod/.full_nav", &info))
+            	{
+		    	__system("touch /sdcard/clockworkmod/.full_nav");
+		    	ui_print("Full touch control disabled\n");
+		}
+		else if (0 == stat("/sdcard/clockworkmod/.full_nav", &info))
+		{
+		    	__system("rm /sdcard/clockworkmod/.full_nav");
+		    	ui_print("Full touch control enabled\n");
+		    	ui_print("Click on buttons on screen for selection.\n");
+		    	ui_print("Swipe left for Go Back.\n");
+		    	ui_print("Swipe right for Scroll Down.\n");
+		    	ui_print("Swipe left for Scroll Up.\n");
+		}
+		
+		toggle_touch_control_menu();
+            }
+            break;
+        case 1:
+            {
+            	if (0 != stat("/sdcard/clockworkmod/.menu_nav", &info))
+            	{
+		    	__system("touch /sdcard/clockworkmod/.menu_nav");
+		    	ui_print("Menu touch control disabled\n");
+		}
+		else if (0 == stat("/sdcard/clockworkmod/.menu_nav", &info))
+		{
+		    	__system("rm /sdcard/clockworkmod/.menu_nav");
+		    	ui_print("Menu touch control enabled\n");
+		    	ui_print("Use menu icons at bottom for navigation\n");
+		}
+		toggle_touch_control_menu();
+            }
+            break;
+        case 2:
+            {
+	    	__system("touch /sdcard/clockworkmod/.full_nav");
+	    	__system("touch /sdcard/clockworkmod/.menu_nav");
+	    	ui_print("All sorts of touch control disabled\n");
+	    	ui_print("Use Volume/Power keys to navigate.\n");
+		toggle_touch_control_menu();
+            }
+            break;
+    }
+    //ui_set_show_text(1);
+}
+
 int install_zip(const char* packagefilepath)
 {
     ui_print("\n-- Installing: %s\n", packagefilepath);
@@ -1837,6 +1925,7 @@ void show_carliv_menu()
     };
 
     char* list[] = { "Aroma File Manager",
+                            "Toggle touch control",
                             "Instructions for touch control",
                             "About",	 	 
                              NULL
@@ -1878,16 +1967,21 @@ void show_carliv_menu()
                 ui_print("No clockworkmod/.aromafm/aromafm.zip on sdcards\n");
                 ui_print("Browsing custom locations\n");
                 custom_aroma_menu();
-                break;  
+                break;
              case 1:
+				toggle_touch_control_menu();
+                break;   
+             case 2:
                 ui_print("To control touch navigation menu touch on bottom's icons:\n");
                 ui_print("Go Back, Down, Up, Enter.\n");
+                ui_print("=================================\n");
+                ui_print("For full touch control, tap on desired menu button. For Go back swipe to the left. For Scroll UP and Scroll Down in long menu pages, Swipe to Right for Page Down, and Swipe to Left for Page UP, and on top of the menu Swipe Left for Go Back.\n");
                 ui_print("\n");
                 break;  
-             case 2:
+             case 3:
                 ui_print("This is a CWM based Recovery with touch screen support and Aroma File Manager capability.\n");
                 ui_print("Developed by carliv from xda with Clockworkmod v. 6.0.4.4 base.\n");
-                ui_print("With touch menu code from Vega Touch and Cannibal Open Touch recovery source, all modified and improved by carliv@xda.\n");
+                ui_print("With touch menu code from Vega Touch and Cannibal Open Touch recovery source, and full touch support module developed by Napstar-xda from UtterChaos Team, all modified and improved by carliv@xda.\n");
                 ui_print("For Aroma File Manager is recommended version 1.80 - Calung, from amarullz xda thread, because it has a full touch support in most of devices.\n");
                 ui_print("Thank you all!\n");
                 ui_print("\n");

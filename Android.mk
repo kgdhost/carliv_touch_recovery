@@ -34,7 +34,7 @@ RECOVERY_NAME := ClockworkMod Recovery
 LOCAL_CFLAGS += -DI_AM_KOUSH
 else
 ifndef RECOVERY_NAME
-RECOVERY_NAME := Carliv Touch Recovery v 1.3
+RECOVERY_NAME := Carliv Touch Recovery v 2.1
 endif
 endif
 
