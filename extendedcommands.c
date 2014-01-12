@@ -112,7 +112,7 @@ toggle_script_assert_check()
     ui_print("Script assert Check: %s\n", script_assert_enabled ? "Enabled" : "Disabled");
 }
 
-void toggle_touch_control_menu()
+void toggle_touch_control_menu()  //Napstar work here
 {
     if (ensure_path_mounted("/sdcard/") != 0) {
         LOGE ("Can't mount sdcard\n");
@@ -143,9 +143,9 @@ void toggle_touch_control_menu()
     	list[0] = "Touch control - OFF";
     }
     if (0 == stat("/sdcard/clockworkmod/.menu_nav", &info))
-    	list[2] = "Menu control - OFF";
+    	list[1] = "Menu control - OFF";
     else if (0 != stat("/sdcard/clockworkmod/.menu_nav", &info))
-    	list[2] = "Menu control - ON";
+    	list[1] = "Menu control - ON";
 
 
     int chosen_item = get_menu_selection(headers, list, 0, 0);
@@ -157,18 +157,18 @@ void toggle_touch_control_menu()
             	{
 		    	__system("touch /sdcard/clockworkmod/.full_nav");
 		    	ui_print("Full touch control disabled\n");
-		}
-		else if (0 == stat("/sdcard/clockworkmod/.full_nav", &info))
-		{
-		    	__system("rm /sdcard/clockworkmod/.full_nav");
-		    	ui_print("Full touch control enabled\n");
-		    	ui_print("Click on buttons on screen for selection.\n");
-		    	ui_print("Swipe left for Go Back.\n");
-		    	ui_print("Swipe right for Scroll Down.\n");
-		    	ui_print("Swipe left for Scroll Up.\n");
-		}
-		
-		toggle_touch_control_menu();
+				}
+				else if (0 == stat("/sdcard/clockworkmod/.full_nav", &info))
+				{
+				    	__system("rm /sdcard/clockworkmod/.full_nav");
+				    	ui_print("Full touch control enabled\n");
+				    	ui_print("Click on buttons on screen for selection.\n");
+				    	ui_print("Swipe left for Go Back.\n");
+				    	ui_print("Swipe right for Scroll Down.\n");
+				    	ui_print("Swipe left for Scroll Up.\n");
+				}
+				
+				toggle_touch_control_menu();
             }
             break;
         case 1:
@@ -177,25 +177,25 @@ void toggle_touch_control_menu()
             	{
 		    	__system("touch /sdcard/clockworkmod/.menu_nav");
 		    	ui_print("Menu touch control disabled\n");
-		}
-		else if (0 == stat("/sdcard/clockworkmod/.menu_nav", &info))
-		{
-		    	__system("rm /sdcard/clockworkmod/.menu_nav");
-		    	ui_print("Menu touch control enabled\n");
-		    	ui_print("Use menu icons at bottom for navigation\n");
-		}
-		toggle_touch_control_menu();
-            }
-            break;
+				}
+				else if (0 == stat("/sdcard/clockworkmod/.menu_nav", &info))
+				{
+				    	__system("rm /sdcard/clockworkmod/.menu_nav");
+				    	ui_print("Menu touch control enabled\n");
+				    	ui_print("Use menu icons at bottom for navigation\n");
+				}
+				toggle_touch_control_menu();
+		            }
+		            break;
         case 2:
             {
-	    	__system("touch /sdcard/clockworkmod/.full_nav");
-	    	__system("touch /sdcard/clockworkmod/.menu_nav");
-	    	ui_print("All sorts of touch control disabled\n");
-	    	ui_print("Use Volume/Power keys to navigate.\n");
-		toggle_touch_control_menu();
-            }
-            break;
+		    	__system("touch /sdcard/clockworkmod/.full_nav");
+		    	__system("touch /sdcard/clockworkmod/.menu_nav");
+		    	ui_print("All sorts of touch control disabled\n");
+		    	ui_print("Use Volume/Power keys to navigate.\n");
+			toggle_touch_control_menu();
+	            }
+	            break;
     }
     //ui_set_show_text(1);
 }
@@ -505,7 +505,7 @@ void show_choose_zip_menu(const char *mount_point)
         install_zip(file);
 }
 
-void show_wipe_menu()
+void show_wipe_menu() //Carliv improvement
 {
 
     static char* headers[] = {  "Wipe Menu",
@@ -514,7 +514,7 @@ void show_wipe_menu()
     };
 
     char* list[] = { "Wipe All Data - Preflash",
-                            "Wipe Data",
+                            "Wipe Data - Factory Reset",
                             "Wipe Cache",
                             "Wipe Dalvik Cache",	 	 
                              NULL
@@ -597,7 +597,7 @@ void show_nandroid_delete_menu(const char* path)
     }
 }
 
-int show_choose_delete_menu()
+int show_choose_delete_menu()  //kanged from COT
 {
     static char *CHOOSE_DELETE_MENU_ITEMS[] = { "View and delete backups on /sdcard",
                                                 NULL,
@@ -650,7 +650,7 @@ static void run_dedupe_gc(const char* other_sd) {
     ui_print("SD Card space free: %lluMB\n", sdcard_free_mb);
 }
 
-int show_lowspace_menu(int i, const char* backup_path)
+int show_lowspace_menu(int i, const char* backup_path) //kanged from COT
 {
 	static char *LOWSPACE_MENU_ITEMS[5] = { "Continue with backup",
 											"View and delete old backups",
@@ -1267,7 +1267,8 @@ void show_partition_menu()
     free(format_menu);
 }
 
-void show_nandroid_advanced_backup_menu(const char *path, int other_sd) {
+void show_nandroid_advanced_backup_menu(const char *path, int other_sd) //kanged from COT
+{
 	if (ensure_path_mounted(path) != 0) {
 		LOGE ("Can't mount %s\n", path);
 		return;
@@ -1735,7 +1736,7 @@ void show_advanced_menu()
     };
 
     static char* list[] = { "Reboot Recovery",
-                            "Reboot to Bootloader",
+                            "Reboot in Download",
                             "Report error",
                             "Key test",
                             "Show log",
@@ -1788,7 +1789,7 @@ void show_advanced_menu()
             case 2:
                 handle_failure(1);
                 break;
-            case 3:
+            case 3:  //Napstar work
             {
 				ui_print("Outputting key codes.\n");
 				ui_print("Go back to end debugging.\n");
@@ -1841,7 +1842,7 @@ void show_advanced_menu()
         }
     }
 }
-
+//Aroma FM menu originaly developed by philz-cwm6
 //browse and select Aroma File Manager from custom locations on sdcards
 static void choose_aromafm_menu(const char* aromafm_path)
 {

@@ -750,16 +750,16 @@ static void
 print_property(const char *key, const char *name, void *cookie) {
     printf("%s=%s\n", key, name);
 }
-/* open recovery script code
- *
- * this will likely need to be updated slightly for JB */
+/* open recovery script code kanged from Cannibal Open Touch Recovery
+ * 
+ * Thank you guys! */
 void delayed_reboot() {
 	int i;
 	for (i = 3; i > 0; i--) {
 		ui_print("Rebooting system in (%d)\n", i);
 		sleep(1);
 	}
-	pass_normal_reboot();
+	poweroff = 0;
 }
 
 static const char *SCRIPT_FILE_CACHE = "/cache/recovery/openrecoveryscript";
@@ -1238,7 +1238,7 @@ main(int argc, char **argv) {
 #endif
         break;
         case 'h':
-            ui_set_background(BACKGROUND_ICON_CID);
+            ui_set_background(BACKGROUND_ICON_CLOCKWORK);
             ui_show_text(0);
             headless = 1;
             break;
