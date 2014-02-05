@@ -40,6 +40,8 @@
 #include "flashutils/flashutils.h"
 #include <libgen.h>
 
+int compression_value = TAR_GZ_FAST; // BSydz Adapted from Philz Advanced Recovery
+
 void nandroid_get_root_backup_path(const char* backup_path, int other_sd)
 {
 	if (other_sd) {
@@ -167,24 +169,39 @@ static int mkyaffs2image_wrapper(const char* backup_path, const char* backup_fil
 
     return __pclose(fp);
 }
+// BSydz Adapted from Philz Advanced Recovery
+
+static int do_tar_compress(char* command, int callback, const char* backup_file_image) {
+    char buf[PATH_MAX];
+
+    FILE *fp = __popen(command, "r");
+    if (fp == NULL) {
+        ui_print("Unable to execute tar command!\n");
+        return -1;
+    }
+
+    while (fgets(buf, PATH_MAX, fp) != NULL) {
+        buf[PATH_MAX - 1] = '\0';
+        if (callback) {
+            nandroid_callback(buf);
+        }
+    }
+
+    return __pclose(fp);
+}
 
 static int tar_compress_wrapper(const char* backup_path, const char* backup_file_image, int callback) {
     char tmp[PATH_MAX];
     sprintf(tmp, "cd $(dirname %s) ; touch %s.tar ; (tar cv --exclude=data/data/com.google.android.music/files/* %s $(basename %s) | split -a 1 -b 1000000000 /proc/self/fd/0 %s.tar.) 2> /proc/self/fd/1 ; exit $?", backup_path, backup_file_image, strcmp(backup_path, "/data") == 0 && is_data_media() ? "--exclude 'media'" : "", backup_path, backup_file_image);
 
-    FILE *fp = __popen(tmp, "r");
-    if (fp == NULL) {
-        ui_print("Unable to execute tar.\n");
-        return -1;
-    }
+    return do_tar_compress(tmp, callback, backup_file_image);
+}
 
-    while (fgets(tmp, PATH_MAX, fp) != NULL) {
-        tmp[PATH_MAX - 1] = NULL;
-        if (callback)
-            nandroid_callback(tmp);
-    }
+static int tar_gzip_compress_wrapper(const char* backup_path, const char* backup_file_image, int callback) {
+    char tmp[PATH_MAX];
+    sprintf(tmp, "cd $(dirname %s) ; touch %s.tar.gz ; (tar cv --exclude=data/data/com.google.android.music/files/* %s $(basename %s) | pigz -c -%d | split -a 1 -b 1000000000 /proc/self/fd/0 %s.tar.gz.) 2> /proc/self/fd/1 ; exit $?", backup_path, backup_file_image, strcmp(backup_path, "/data") == 0 && is_data_media() ? "--exclude 'media'" : "", backup_path, compression_value, backup_file_image);
 
-    return __pclose(fp);
+    return do_tar_compress(tmp, callback, backup_file_image);
 }
 
 static int tar_dump_wrapper(const char* backup_path, const char* backup_file_image, int callback) {
@@ -265,6 +282,8 @@ static void refresh_default_backup_handler() {
     fmt[3] = NULL;
     if (0 == strcmp(fmt, "dup"))
         default_backup_handler = dedupe_compress_wrapper;
+    else if (0 == strcmp(fmt, "tgz"))
+        default_backup_handler = tar_gzip_compress_wrapper; //BSydz
     else
         default_backup_handler = tar_compress_wrapper;
 }
@@ -273,6 +292,8 @@ unsigned nandroid_get_default_backup_format() {
     refresh_default_backup_handler();
     if (default_backup_handler == dedupe_compress_wrapper) {
         return NANDROID_BACKUP_FORMAT_DUP;
+    } else if (default_backup_handler == tar_gzip_compress_wrapper) {
+        return NANDROID_BACKUP_FORMAT_TGZ; //BSydz
     } else {
         return NANDROID_BACKUP_FORMAT_TAR;
     }
@@ -303,6 +324,45 @@ static nandroid_backup_handler get_backup_handler(const char *backup_path) {
     }
 
     return default_backup_handler;
+}
+//start refresh nandroid compression
+// BSydz Adapted from Philz Advanced Recovery
+
+static void refresh_nandroid_compression() {
+    char value[PROPERTY_VALUE_MAX];
+        if (default_backup_handler == tar_gzip_compress_wrapper) {
+        ensure_path_mounted("/sdcard");
+        FILE* f = fopen(NANDROID_TGZ_COMPRESSION_FILE, "r");
+        if (NULL == f) {
+            compression_value = 0;
+            return;
+        }
+        fread(value, 1, sizeof(value), f);
+        fclose(f);
+    }
+    if (strcmp(value, "low") == 0)
+        compression_value = TAR_GZ_LOW;
+    else if (strcmp(value, "medium") == 0)
+        compression_value = TAR_GZ_MEDIUM;
+    else if (strcmp(value, "high") == 0)
+        compression_value = TAR_GZ_HIGH;
+    else if (strcmp(value, "fast") == 0)
+	    compression_value = TAR_GZ_FAST;
+}
+
+unsigned nandroid_get_default_tgz_compression() {
+    refresh_nandroid_compression();
+    if (compression_value == TAR_GZ_LOW) {
+        return TAR_GZ_LOW;
+    } else if (compression_value == TAR_GZ_MEDIUM) {
+        return TAR_GZ_MEDIUM;
+    } else if (compression_value == TAR_GZ_HIGH) {
+        return TAR_GZ_HIGH;
+    } else if (compression_value == TAR_GZ_FAST) {
+        return TAR_GZ_FAST;
+    } else {
+        return NULL;
+    }
 }
 
 int nandroid_backup_partition_extended(const char* backup_path, const char* mount_point, int umount_when_finished) {
@@ -476,6 +536,7 @@ int nandroid_backup(const char* backup_path)
     nandroid_backup_bitfield = 0;
     ui_set_background(BACKGROUND_ICON_INSTALLING);
     refresh_default_backup_handler();
+    refresh_nandroid_compression(); //BSydz
 
     if (ensure_path_mounted(backup_path) != 0) {
         return print_and_error("Can't mount backup path.\n");
@@ -630,23 +691,39 @@ static int unyaffs_wrapper(const char* backup_file_image, const char* backup_pat
 
     return __pclose(fp);
 }
+// BSydz Adapted from Philz Advanced Recovery
+
+static int do_tar_extract(char* command, const char* backup_file_image, const char* backup_path, int callback) {
+    char buf[PATH_MAX];
+
+    FILE *fp = __popen(command, "r");
+    if (fp == NULL) {
+        ui_print("Unable to execute tar command.\n");
+        return -1;
+    }
+
+    while (fgets(buf, PATH_MAX, fp) != NULL) {
+        buf[PATH_MAX - 1] = '\0';
+        if (callback) {
+            nandroid_callback(buf);
+        }
+    }
+
+    return __pclose(fp);
+}
+
+static int tar_gzip_extract_wrapper(const char* backup_file_image, const char* backup_path, int callback) {
+    char tmp[PATH_MAX];
+    sprintf(tmp, "cd $(dirname %s) ; cat %s* | pigz -d -c | tar xv ; exit $?", backup_path, backup_file_image);
+
+    return do_tar_extract(tmp, backup_file_image, backup_path, callback);
+}
 
 static int tar_extract_wrapper(const char* backup_file_image, const char* backup_path, int callback) {
     char tmp[PATH_MAX];
     sprintf(tmp, "cd $(dirname %s) ; cat %s* | tar xv ; exit $?", backup_path, backup_file_image);
-    FILE *fp = __popen(tmp, "r");
-    if (fp == NULL) {
-        ui_print("Unable to execute tar.\n");
-        return -1;
-    }
 
-    while (fgets(tmp, PATH_MAX, fp) != NULL) {
-        tmp[PATH_MAX - 1] = NULL;
-        if (callback)
-            nandroid_callback(tmp);
-    }
-
-    return __pclose(fp);
+    return do_tar_extract(tmp, backup_file_image, backup_path, callback);
 }
 
 static int dedupe_extract_wrapper(const char* backup_file_image, const char* backup_path, int callback) {
@@ -754,6 +831,12 @@ int nandroid_restore_partition_extended(const char* backup_path, const char* mou
                 restore_handler = tar_extract_wrapper;
                 break;
             }
+                sprintf(tmp, "%s/%s.%s.tar.gz", backup_path, name, filesystem); //BSydz
+                if (0 == (ret = stat(tmp, &file_info))) {
+                    backup_filesystem = filesystem;
+                    restore_handler = tar_gzip_extract_wrapper;
+                    break;
+                }
             sprintf(tmp, "%s/%s.%s.dup", backup_path, name, filesystem);
             if (0 == (ret = stat(tmp, &file_info))) {
                 backup_filesystem = filesystem;
@@ -764,7 +847,7 @@ int nandroid_restore_partition_extended(const char* backup_path, const char* mou
         }
 
         if (backup_filesystem == NULL || restore_handler == NULL) {
-            ui_print("No %s backup found(img, tar, dup). Skipping restore of %s.\n", name, mount_point);
+            ui_print("No %s backup found(img, tar, tar.gz, dup). Skipping restore of %s.\n", name, mount_point); //BSydz
             return 0;
         }
         else {
