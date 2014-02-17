@@ -1038,7 +1038,13 @@ void wipe_data(int confirm) {
 
     ui_print("\n-- Wiping data...\n");
     device_wipe_data();
+    __system("mount /emmc@usrdata /data");
+    __system("tar -czvf /tmp/nvram.tar.gz /data/nvram");
+    __system("umount -f /data");
     erase_volume("/data");
+    __system("mount /emmc@usrdata /data");
+    __system("tar -zxvf /tmp/nvram.tar.gz -C /");
+    __system("umount -f /data");
     erase_volume("/cache");
     if (has_datadata()) {
         erase_volume("/datadata");
@@ -1095,7 +1101,13 @@ void wipe_all(int orscallback) {
 	}
 	ui_print("\n-- Wiping system, data, cache...\n");
 	erase_volume("/system");
-	erase_volume("/data");
+    __system("mount /emmc@usrdata /data");
+    __system("tar -czvf /tmp/nvram.tar.gz /data/nvram");
+    __system("umount -f /data");
+    erase_volume("/data");
+    __system("mount /emmc@usrdata /data");
+    __system("tar -zxvf /tmp/nvram.tar.gz -C /");
+    __system("umount -f /data");
 	erase_volume("/cache");
 	ui_print("\nFull wipe complete!\n");
 	if (!ui_text_visible()) return;
